@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -12,8 +12,8 @@ function App() {
 
   let currentShapes: Shape[] = [];
   const selectedRef = useRef<number | null>(null);
-  const [isMoving, setMoving] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const startPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,7 +22,8 @@ function App() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      let clicked = false;
+      let isDrawing = false;
+      let isMoving = false;
       let startX = 0;
       let startY = 0;
 
@@ -61,8 +62,8 @@ function App() {
 
       // mouse down handler
       const handleMouseDown = (e: MouseEvent) => {
-        clicked = true;
-
+        isDrawing = true;
+       
         const rect = canvas.getBoundingClientRect();
         startX = e.clientX - rect.x;
         startY = e.clientY - rect.y;
@@ -72,70 +73,79 @@ function App() {
 
           if (isPointInShape(startX, startY, shape)) {
             selectedRef.current = i;
-
+            isMoving = true;
+            startPosRef.current = { x: startX, y: startY };
             redrawCanvas();
-            setMoving(true);
-            setStartPos({ x: startX, y: startY });
             return;
           }
+
+          selectedRef.current = null;
+          redrawCanvas();
         }
-        selectedRef.current = null;
-        redrawCanvas();
       };
 
       // mouse up handler
       const handleMouseUp = (e: MouseEvent) => {
-        clicked = false;
+        if (!isMoving && isDrawing) {
+          const rect = canvas.getBoundingClientRect();
+          
+          const width = e.clientX - rect.x - startX;
+          const height = e.clientY - rect.y - startY;
+          
+          const shape: Shape = {
+            x: startX,
+            y: startY,
+            width,
+            height,
+          };
+          
+          currentShapes.push(shape);
+        }
 
-        const rect = canvas.getBoundingClientRect();
-
-        const width = e.clientX - rect.x - startX;
-        const height = e.clientY - rect.y - startY;
-
-        const shape: Shape = {
-          x: startX,
-          y: startY,
-          width,
-          height,
-        };
-
-        currentShapes.push(shape);
+        isDrawing = false;
+        isMoving = false;
         redrawCanvas();
       };
 
       // mouse move handler
       const handleMouseMove = (e: MouseEvent) => {
-        if (clicked) {
-          const rect = canvas.getBoundingClientRect();
+        const rect = canvas.getBoundingClientRect();
 
-          if (isMoving && selectedRef.current !== null) {
-            const mouseX = e.clientX - rect.x;
-            const mouseY = e.clientY - rect.y;
-            const dx = mouseX - startPos.x;
-            const dy = mouseY - startPos.y;
+        if (isMoving && selectedRef.current !== null && isDrawing) {
+          canvas.style.cursor = "move";
 
-            const newShapes = [...currentShapes];
+          const mouseX = e.clientX - rect.x;
+          const mouseY = e.clientY - rect.y;
 
-            newShapes[selectedRef.current] = {
-              ...currentShapes[selectedRef.current],
-              x: currentShapes[selectedRef.current].x + dx,
-              y: currentShapes[selectedRef.current].y + dy,
-            };
+          const changeX = mouseX - startPosRef.current.x;
+          const changeY = mouseY - startPosRef.current.y;
 
-            currentShapes = newShapes;
-            setStartPos({ x: mouseX, y: mouseY });
-            redrawCanvas();
-          } else {
-            const width = e.clientX - rect.x - startX;
-            const height = e.clientY - rect.y - startY;
 
-            redrawCanvas();
+          const newShapes = [...currentShapes];
 
-            ctx.strokeStyle = "rgba(255,255,255)";
-            ctx.beginPath();
-            ctx.roundRect(startX, startY, width, height, [20]);
-            ctx.stroke();
-          }
+          newShapes[selectedRef.current] = {
+            ...currentShapes[selectedRef.current],
+            x: currentShapes[selectedRef.current].x + changeX,
+            y: currentShapes[selectedRef.current].y + changeY,
+          };
+
+          currentShapes = newShapes;
+          startPosRef.current = { x: mouseX, y: mouseY };
+          redrawCanvas();
+        } else if (isDrawing) {
+          canvas.style.cursor = "default";
+
+          const width = e.clientX - rect.x - startX;
+          const height = e.clientY - rect.y - startY;
+
+          redrawCanvas();
+
+          ctx.strokeStyle = "rgba(255,255,255)";
+          ctx.beginPath();
+          ctx.roundRect(startX, startY, width, height, [20]);
+          ctx.stroke();
+        } else {
+          canvas.style.cursor = "default";
         }
       };
 
@@ -159,7 +169,7 @@ function App() {
         ref={canvasRef}
         width={2000}
         height={1000}
-        className="bg-black †ext-white"
+        className="bg-black †ext-white focus:outline-none"
       ></canvas>
     </div>
   );
