@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Toolbar, { Tools } from "./components/Toolbar";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -10,14 +11,22 @@ function App() {
     height: number;
   }
 
-  let currentShapes: Shape[] = [];
+  const currentShapesRef = useRef<Shape[]>([]);
   const selectedRef = useRef<number | null>(null);
   const startPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const [selectedTool, setSelectedTool] = useState<Tools>("POINTER");
+
+  const updateRef = (value: Tools) => {
+    setSelectedTool(value);
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const currentShapes = currentShapesRef.current
     if (canvas) {
+      if (selectedTool === "POINTER") return;
+
       canvas.setAttribute("tabindex", "0");
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -37,16 +46,27 @@ function App() {
       // canvas redraw logic
       const redrawCanvas = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "rgba(0,0,0)";
+        ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        currentShapes?.forEach(({ x, y, width, height }, i: number) => {
-          const isSelected = i === selectedRef.current;
-          ctx.strokeStyle = isSelected ? "rgba(0,255,0)" : "rgba(255,255,255)";
-          ctx.beginPath();
-          ctx.roundRect(x, y, width, height, [20]);
-          ctx.stroke();
-        });
+        currentShapes.forEach(
+          ({ x, y, width, height }, i: number) => {
+            const isSelected = i === selectedRef.current;
+
+            if (isSelected) {
+              ctx.strokeStyle = "rgba(0, 127, 206)";
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x - 3, y - 3, width + 6, height + 6);
+              ctx.stroke();
+            }
+
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(x, y, width, height, [20]);
+            ctx.stroke();
+          }
+        );
       };
 
       // handle shape deletion
@@ -63,7 +83,7 @@ function App() {
       // mouse down handler
       const handleMouseDown = (e: MouseEvent) => {
         isDrawing = true;
-       
+
         const rect = canvas.getBoundingClientRect();
         startX = e.clientX - rect.x;
         startY = e.clientY - rect.y;
@@ -88,17 +108,17 @@ function App() {
       const handleMouseUp = (e: MouseEvent) => {
         if (!isMoving && isDrawing) {
           const rect = canvas.getBoundingClientRect();
-          
+
           const width = e.clientX - rect.x - startX;
           const height = e.clientY - rect.y - startY;
-          
+
           const shape: Shape = {
             x: startX,
             y: startY,
             width,
             height,
           };
-          
+
           currentShapes.push(shape);
         }
 
@@ -120,7 +140,6 @@ function App() {
           const changeX = mouseX - startPosRef.current.x;
           const changeY = mouseY - startPosRef.current.y;
 
-
           const newShapes = [...currentShapes];
 
           newShapes[selectedRef.current] = {
@@ -129,7 +148,7 @@ function App() {
             y: currentShapes[selectedRef.current].y + changeY,
           };
 
-          currentShapes = newShapes;
+          currentShapesRef.current = newShapes;
           startPosRef.current = { x: mouseX, y: mouseY };
           redrawCanvas();
         } else if (isDrawing) {
@@ -140,7 +159,9 @@ function App() {
 
           redrawCanvas();
 
-          ctx.strokeStyle = "rgba(255,255,255)";
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1.5;
+
           ctx.beginPath();
           ctx.roundRect(startX, startY, width, height, [20]);
           ctx.stroke();
@@ -161,16 +182,17 @@ function App() {
         canvas.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, []);
+  }, [selectedTool]);
 
   return (
-    <div className="h-screen w-screen">
+    <div className="h-screen w-screen overflow-scroll">
       <canvas
         ref={canvasRef}
         width={2000}
         height={1000}
-        className="bg-black †ext-white focus:outline-none"
+        className="bg-white †ext-black focus:outline-none"
       ></canvas>
+      <Toolbar selectedTool={selectedTool} updateTool={updateRef} />
     </div>
   );
 }
