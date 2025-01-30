@@ -23,7 +23,7 @@ function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const currentShapes = currentShapesRef.current
+    
     if (canvas) {
       if (selectedTool === "POINTER") return;
 
@@ -49,7 +49,7 @@ function App() {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        currentShapes.forEach(
+        currentShapesRef.current.forEach(
           ({ x, y, width, height }, i: number) => {
             const isSelected = i === selectedRef.current;
 
@@ -73,7 +73,7 @@ function App() {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === "Backspace" && selectedRef.current !== null) {
           if (selectedRef.current !== null) {
-            currentShapes.splice(selectedRef.current, 1);
+            currentShapesRef.current.splice(selectedRef.current, 1);
             selectedRef.current = null;
             redrawCanvas();
           }
@@ -88,8 +88,8 @@ function App() {
         startX = e.clientX - rect.x;
         startY = e.clientY - rect.y;
 
-        for (let i = 0; i < currentShapes.length; i++) {
-          const shape = currentShapes[i];
+        for (let i = 0; i < currentShapesRef.current.length; i++) {
+          const shape = currentShapesRef.current[i];
 
           if (isPointInShape(startX, startY, shape)) {
             selectedRef.current = i;
@@ -119,7 +119,7 @@ function App() {
             height,
           };
 
-          currentShapes.push(shape);
+          currentShapesRef.current.push(shape);
         }
 
         isDrawing = false;
@@ -140,12 +140,12 @@ function App() {
           const changeX = mouseX - startPosRef.current.x;
           const changeY = mouseY - startPosRef.current.y;
 
-          const newShapes = [...currentShapes];
+          const newShapes = [...currentShapesRef.current];
 
           newShapes[selectedRef.current] = {
-            ...currentShapes[selectedRef.current],
-            x: currentShapes[selectedRef.current].x + changeX,
-            y: currentShapes[selectedRef.current].y + changeY,
+            ...currentShapesRef.current[selectedRef.current],
+            x: currentShapesRef.current[selectedRef.current].x + changeX,
+            y: currentShapesRef.current[selectedRef.current].y + changeY,
           };
 
           currentShapesRef.current = newShapes;
