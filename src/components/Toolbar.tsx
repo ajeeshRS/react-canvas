@@ -1,5 +1,6 @@
 import {
   Circle,
+  Minus,
   MousePointer,
   Pencil,
   Square,
@@ -11,14 +12,15 @@ export type Tools =
   | "RECT"
   | "CIRCLE"
   | "PENCIL"
+  | "LINE"
   | "TEXT"
   | "ERASER";
 
 export default function Toolbar({
   updateTool,
-  selectedTool
+  selectedTool,
 }: {
-  selectedTool : Tools
+  selectedTool: Tools;
   updateTool: (value: Tools) => void;
 }) {
   const handleSelection = (tool: Tools) => {
@@ -30,6 +32,7 @@ export default function Toolbar({
     { name: "POINTER", icon: <MousePointer className="w-5 h-5" /> },
     { name: "RECT", icon: <Square className="w-5 h-5" /> },
     { name: "CIRCLE", icon: <Circle className="w-5 h-5" /> },
+    { name: "LINE", icon: <Minus className="w-5 h-5" /> },
     { name: "PENCIL", icon: <Pencil className="w-5 h-5" /> },
     { name: "TEXT", icon: <TypeOutline className="w-5 h-5" /> },
   ];
