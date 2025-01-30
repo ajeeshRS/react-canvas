@@ -4,12 +4,20 @@ import Toolbar, { Tools } from "./components/Toolbar";
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  interface Shape {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }
+  type Shape =
+    | {
+        type: "RECT";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }
+    | {
+        type: "CIRCLE";
+        centerX: number;
+        centerY: number;
+        radius: number;
+      };
 
   const currentShapesRef = useRef<Shape[]>([]);
   const selectedRef = useRef<number | null>(null);
@@ -23,7 +31,7 @@ function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    
+
     if (canvas) {
       if (selectedTool === "POINTER") return;
 
@@ -37,10 +45,15 @@ function App() {
       let startY = 0;
 
       const isPointInShape = (x: number, y: number, shape: Shape) => {
-        const withinX = x >= shape.x && x <= shape.x + shape.width;
-        const withinY = y >= shape.y && y <= shape.y + shape.height;
-
-        return withinX && withinY;
+        if (shape.type === "RECT") {
+          const withinX = x >= shape.x && x <= shape.x + shape.width;
+          const withinY = y >= shape.y && y <= shape.y + shape.height;
+          return withinX && withinY;
+        } else if (shape.type === "CIRCLE") {
+          const distX = x - shape.centerX;
+          const distY = y - shape.centerY;
+          return Math.sqrt(distX ** 2 + distY ** 2) <= shape.radius;
+        }
       };
 
       // canvas redraw logic
@@ -49,24 +62,47 @@ function App() {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        currentShapesRef.current.forEach(
-          ({ x, y, width, height }, i: number) => {
-            const isSelected = i === selectedRef.current;
+        currentShapesRef.current.forEach((shape: Shape, i: number) => {
+          const isSelected = i === selectedRef.current;
 
-            if (isSelected) {
-              ctx.strokeStyle = "rgba(0, 127, 206)";
-              ctx.lineWidth = 1;
-              ctx.strokeRect(x - 3, y - 3, width + 6, height + 6);
-              ctx.stroke();
-            }
+          if (isSelected && shape.type === "RECT") {
+            ctx.strokeStyle = "rgba(0, 127, 206)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+              shape.x - 3,
+              shape.y - 3,
+              shape.width + 6,
+              shape.height + 6
+            );
+            ctx.stroke();
+          } else if (isSelected && shape.type === "CIRCLE") {
+            ctx.strokeStyle = "rgba(0, 127, 206)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+              shape.centerX - shape.radius - 3,
+              shape.centerY - shape.radius - 3,
+              shape.radius * 2 + 6,
+              shape.radius * 2 + 6
+            );
+          }
 
+          if (shape.type === "RECT") {
             ctx.strokeStyle = "black";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.roundRect(x, y, width, height, [20]);
+            ctx.roundRect(shape.x, shape.y, shape.width, shape.height, [20]);
             ctx.stroke();
           }
-        );
+
+          if (shape.type === "CIRCLE") {
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(shape.centerX, shape.centerY, shape.radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.closePath();
+          }
+        });
       };
 
       // handle shape deletion
@@ -112,14 +148,30 @@ function App() {
           const width = e.clientX - rect.x - startX;
           const height = e.clientY - rect.y - startY;
 
-          const shape: Shape = {
-            x: startX,
-            y: startY,
-            width,
-            height,
-          };
+          if (selectedTool === "RECT") {
+            const shape: Shape = {
+              type: "RECT",
+              x: startX,
+              y: startY,
+              width,
+              height,
+            };
+            currentShapesRef.current.push(shape);
+          }
 
-          currentShapesRef.current.push(shape);
+          if (selectedTool === "CIRCLE") {
+            const radius = Math.sqrt(width ** 2 + height ** 2) / 2;
+            const centerX = startX + width / 2;
+            const centerY = startY + height / 2;
+
+            const shape: Shape = {
+              type: "CIRCLE",
+              centerX,
+              centerY,
+              radius,
+            };
+            currentShapesRef.current.push(shape);
+          }
         }
 
         isDrawing = false;
@@ -130,9 +182,9 @@ function App() {
       // mouse move handler
       const handleMouseMove = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
-
         if (isMoving && selectedRef.current !== null && isDrawing) {
           canvas.style.cursor = "move";
+          const selectedShape = selectedRef.current;
 
           const mouseX = e.clientX - rect.x;
           const mouseY = e.clientY - rect.y;
@@ -142,10 +194,19 @@ function App() {
 
           const newShapes = [...currentShapesRef.current];
 
-          newShapes[selectedRef.current] = {
-            ...currentShapesRef.current[selectedRef.current],
-            x: currentShapesRef.current[selectedRef.current].x + changeX,
-            y: currentShapesRef.current[selectedRef.current].y + changeY,
+          newShapes[selectedShape] = {
+            ...currentShapesRef.current[selectedShape],
+            ...(currentShapesRef.current[selectedShape].type === "RECT"
+              ? {
+                  x: currentShapesRef.current[selectedShape].x + changeX,
+                  y: currentShapesRef.current[selectedShape].y + changeY,
+                }
+              : currentShapesRef.current[selectedShape].type === "CIRCLE" && {
+                  centerX:
+                    currentShapesRef.current[selectedShape].centerX + changeX,
+                  centerY:
+                    currentShapesRef.current[selectedShape].centerY + changeY,
+                }),
           };
 
           currentShapesRef.current = newShapes;
@@ -162,9 +223,21 @@ function App() {
           ctx.strokeStyle = "black";
           ctx.lineWidth = 1.5;
 
-          ctx.beginPath();
-          ctx.roundRect(startX, startY, width, height, [20]);
-          ctx.stroke();
+          if (selectedTool === "RECT") {
+            ctx.beginPath();
+            ctx.roundRect(startX, startY, width, height, [20]);
+            ctx.stroke();
+          }
+
+          if (selectedTool === "CIRCLE") {
+            ctx.beginPath();
+            const centerX = startX + width / 2;
+            const centerY = startY + height / 2;
+            const radius = Math.sqrt(width ** 2 + height ** 2) / 2;
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.closePath();
+          }
         } else {
           canvas.style.cursor = "default";
         }
