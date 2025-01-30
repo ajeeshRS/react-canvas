@@ -37,7 +37,14 @@ function App() {
 
       canvas.setAttribute("tabindex", "0");
       const ctx = canvas.getContext("2d");
+
       if (!ctx) return;
+
+      canvas.width = window.innerWidth * 3;
+      canvas.height = window.innerHeight * 3;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.scale(3, 3);
 
       let isDrawing = false;
       let isMoving = false;
@@ -104,6 +111,9 @@ function App() {
           }
         });
       };
+
+      // redrawing for balancing the slight delay in showing shapes when re-renders
+      redrawCanvas();
 
       // handle shape deletion
       const handleKeyDown = (e: KeyboardEvent) => {
